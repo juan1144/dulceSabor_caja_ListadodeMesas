@@ -1,0 +1,20 @@
+﻿@model dulceSabor_caja_ListadodeMesas.Models.cuenta
+
+@{
+    ViewData["Title"] = "Generar Factura";
+}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="overflow-auto">
+            <h2>Información de la cuenta</h2>
+            <p>ID de la cuenta: @Model.Id_cuenta</p>
+            <p>Nombre del cliente: @Model.Nombre</p>
+        </div>
+        <!-- Agrega aquí más detalles de la cuenta según tu modelo -->
+    </div>
+    <div class="col-md-6">
+        <h2>Forma de pago</h2>
+        <!-- Aquí podrías agregar más detalles sobre la forma de pago, como el número de tarjeta, etc. -->
+    </div>
+</div>
