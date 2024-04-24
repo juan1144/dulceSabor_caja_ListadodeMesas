@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 namespace dulceSabor_caja_ListadodeMesas.Controllers
 {
@@ -21,6 +22,8 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
             //Aqui se obtienen los datos de marcas de la base para mostrarlo en la tabla
             var listaDeMesas = (from m in _dulceSaborDbContext.mesas
                                 join e in _dulceSaborDbContext.estados on m.id_estado equals e.id_estado
+                                join c in _dulceSaborDbContext.cuenta on m.id_mesa equals c.Id_mesa
+                                where e.id_estado == 12 && c.Estado_cuenta.Equals("Cerrada")
                                 select new
                                  {
                                      id_mesa = m.id_mesa,
@@ -54,7 +57,7 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
             
             var cuentas = (from m in _dulceSaborDbContext.mesas
                                 join c in _dulceSaborDbContext.cuenta on m.id_mesa equals c.Id_mesa
-                                where m.id_mesa == id
+                                where m.id_mesa == id && c.Estado_cuenta.Equals("Cerrada")
                                 select new
                                 {
                                     id_cuenta = c.Id_cuenta,
@@ -98,18 +101,112 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                 return NotFound();
             }
 
+
             var cuenta = await _dulceSaborDbContext.cuenta
                 .FirstOrDefaultAsync(c => c.Id_cuenta == id);
+
 
             if (cuenta == null)
             {
                 return NotFound();
             }
 
+            var detalle_Pedido = (from dp in _dulceSaborDbContext.Detalle_Pedido
+                                  join im in _dulceSaborDbContext.items_menu on dp.Id_plato equals im.id_item_menu
+                                  join c in _dulceSaborDbContext.cuenta on dp.Id_cuenta equals c.Id_cuenta
+                                  join m in _dulceSaborDbContext.mesas on c.Id_mesa equals m.id_mesa
+                                  /*where dp.Estado.Equals("Entregado")*/
+                                  select new
+                                  {
+                                      id_detP = dp.Id_DetalleCuenta,
+                                      id_cuenta = c.Id_cuenta,
+                                      id_plato = dp.Id_plato,
+                                      nombre_plato = im.nombre,
+                                      cantidad = dp.Cantidad,
+                                      estado_detPedido = dp.Estado,
+                                      tipo_plato = dp.Tipo_Plato,
+                                      precio = dp.Precio
+                                  }).ToList();
+            ViewData["lista_detPedidos"] = detalle_Pedido;
+
+            var clientesDatos = await _dulceSaborDbContext.clientes.ToListAsync();
+            ViewData["listaClientes"] = clientesDatos;
+
             return View(cuenta);
 
         }
 
         //FIN DEL MÉTODO DE detalleFactura
+
+        //ESTE ES EL MÉTODO que se ejecuta cada vez que le den a un botón en el Detalle de los pedidos
+
+        [HttpPost]
+        public async Task<IActionResult> Facturar(string dui_existente, string dui_nuevo, string nombre, string apellido, string correo, string metodo_pago, int cantidad, decimal totalPagar, string idsPedidosSeleccionados)
+        {
+            DateTime fechaActual = DateTime.Now;
+            int? idCliente = null;
+            var ids = idsPedidosSeleccionados.Split(',').Select(int.Parse).ToList();
+            var cuenta_id = await _dulceSaborDbContext.Detalle_Pedido
+            .FirstOrDefaultAsync(dp => dp.Id_DetalleCuenta == ids.First());
+
+            // Verificar si dui_existente está vacío o nulo
+            if (string.IsNullOrEmpty(dui_existente))
+            {
+                // Crear un nuevo cliente con los datos proporcionados
+                var nuevoCliente = new clientes
+                {
+                    nombre = nombre,
+                    apellido = apellido,
+                    correo = correo,
+                    dui = dui_nuevo // Asignar el nuevo DUI proporcionado
+                };
+
+                // Agregar el nuevo cliente a la base de datos
+                _dulceSaborDbContext.clientes.Add(nuevoCliente);
+                await _dulceSaborDbContext.SaveChangesAsync(); // Guardar los cambios para obtener el ID generado
+
+                // Obtener el ID del cliente recién creado
+                var clienteExistente = await _dulceSaborDbContext.clientes.FirstOrDefaultAsync(cl => cl.dui == nuevoCliente.dui);
+                idCliente = clienteExistente.id_cliente;
+            }
+            else
+            {
+                // Buscar el cliente existente por su DUI
+                var clienteExistente = await _dulceSaborDbContext.clientes.FirstOrDefaultAsync(cl => cl.dui == dui_existente);
+
+                // Verificar si se encontró un cliente con el DUI proporcionado
+                if (clienteExistente != null)
+                {
+                    // Obtener el ID del cliente existente
+                    idCliente = clienteExistente.id_cliente;
+                }
+                else
+                {
+                    // Manejar el caso cuando el DUI no existe en la base de datos
+                    ModelState.AddModelError("dui_existente", "El DUI proporcionado no existe en la base de datos.");
+                    return RedirectToAction("ErrorGenerarFactura", cuenta_id.Id_cuenta);
+                }
+                // Si no se encuentra un cliente con el DUI existente, puedes manejarlo según tus necesidades
+                // Por ejemplo, puedes lanzar una excepción o redirigir a una página de error
+            }
+
+            // Crear un nuevo encabezado de factura
+            var nuevoEncabezadoFac = new encabezado_fac
+            {
+                id_pedido = cuenta_id.Id_cuenta,
+                id_cliente = idCliente,
+                fecha_cobro = fechaActual,
+                total_cobrado = totalPagar,
+                metodo_pago = metodo_pago
+            };
+
+            // Agregar el nuevo encabezado de factura a la base de datos
+            _dulceSaborDbContext.Add(nuevoEncabezadoFac);
+            await _dulceSaborDbContext.SaveChangesAsync();
+
+            return RedirectToAction("Index"); // Redirigir a la página principal
+        }
+
+
     }
 }

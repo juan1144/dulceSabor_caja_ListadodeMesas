@@ -11,5 +11,7 @@ namespace dulceSabor_caja_ListadodeMesas.Models
         public DbSet<cuenta> cuenta { get; set; }
         public DbSet<Detalle_Pedido> Detalle_Pedido { get; set; }
         public DbSet<items_menu> items_menu { get; set; }
+        public DbSet<encabezado_fac> encabezado_fac { get; set; }
+        public DbSet<clientes> clientes { get; set; }
     }
 }

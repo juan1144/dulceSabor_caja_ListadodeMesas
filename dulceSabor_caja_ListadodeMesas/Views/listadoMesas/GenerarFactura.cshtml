@@ -1,20 +1,222 @@
 ﻿@model dulceSabor_caja_ListadodeMesas.Models.cuenta
-
 @{
     ViewData["Title"] = "Generar Factura";
+    var cantidadYTotal = ViewData["cantidadYTotal"] as dynamic;
+    var clientesListado = ViewData["listaClientes"] as dynamic;
 }
-
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <div class="row">
     <div class="col-md-6">
-        <div class="overflow-auto">
-            <h2>Información de la cuenta</h2>
-            <p>ID de la cuenta: @Model.Id_cuenta</p>
-            <p>Nombre del cliente: @Model.Nombre</p>
-        </div>
+        <h2>Información de la cuenta</h2>
+        <p>ID de la cuenta: @Model.Id_cuenta</p>
+        <p>Nombre del cliente: @Model.Nombre</p>
+
+        <!---->
+
+        <table class="table table-striped-columns">
+            <thead>
+                <tr>
+                    <th>
+                        Id del pedido
+                    </th>
+                    <th>
+                        Item
+                    </th>
+                    <th>
+                        Cantidad
+                    </th>
+                    <th>
+                        Estado
+                    </th>
+                    <th>
+                        Precio
+                    </th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var detalle_cuenta in (IEnumerable<dynamic>)ViewData["lista_detPedidos"])
+                {
+                    if (@detalle_cuenta.id_cuenta == @Model.Id_cuenta)
+                    {
+                        <tr>
+                            <td>
+                                @detalle_cuenta.id_detP
+                            </td>
+                            <td>
+                                @detalle_cuenta.nombre_plato
+                            </td>
+                            <td>
+                                @detalle_cuenta.cantidad
+                            </td>
+                            <td>
+                                @detalle_cuenta.estado_detPedido
+                            </td>
+                            <td>
+                                @detalle_cuenta.precio
+                            </td>
+                            <td>
+                            <td><input type="checkbox" class="detalle-pedido" data-id="@detalle_cuenta.id_detP" data-precio="@detalle_cuenta.precio" /></td>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
         <!-- Agrega aquí más detalles de la cuenta según tu modelo -->
     </div>
     <div class="col-md-6">
         <h2>Forma de pago</h2>
         <!-- Aquí podrías agregar más detalles sobre la forma de pago, como el número de tarjeta, etc. -->
+        <form asp-action="facturar">
+
+            <!--AQUI VA EL APARTADO PARA OBTENER LOS DATOS DEL CLIENTE O PARA INGRESAR UN NUEVO CLIENTE-->
+
+            <div class="col-12">
+                <label>Cliente</label>
+                <div>
+                    <input type="radio" name="clienteOption" value="existente" checked onchange="validarDUI()">
+                    <label for="existente">Cliente existente</label>
+                    <input type="radio" name="clienteOption" value="nuevo" onchange="validarDUI()">
+                    <label for="nuevo">Nuevo cliente</label>
+                </div>
+                <div id="divClienteExistente">
+                    <!-- Aquí puedes poner el campo para ingresar el número de identificación -->
+                    <label>DUI</label>
+                    @Html.TextBox("dui_existente", "", new { @class = "form-control", id = "dui_existente", name = "dui_existente", onchange = "validarDUI()" })
+                    <!--<button type="button" class="btn btn-outline-primary" onclick="validarDUI()">Verificar</button>-->
+                </div>
+                <div id="divNuevoCliente" style="display:none;">
+                    <!-- Aquí puedes poner los campos para ingresar la información del nuevo cliente -->
+                    <div class="row">
+                        <div class="col-6">
+                            <label>Nombre</label>
+                            @Html.TextBox("nombre", "", new { @class = "form-control" })
+                        </div>
+                        <div class="col-6">
+                            <label>Apellido</label>
+                            @Html.TextBox("apellido", "", new { @class = "form-control" })
+                        </div>
+                        <div class="col-6">
+                            <label>Correo</label>
+                            @Html.TextBox("correo", "", new { @class = "form-control" })
+                        </div>
+                        <div class="col-6">
+                            <label>DUI</label>
+                            @Html.TextBox("dui_nuevo", "", new { @class = "form-control" })
+                        </div>
+                    </div>
+                    
+                    <!-- Otros campos de información del nuevo cliente -->
+                </div>
+                <hr />
+            </div>
+            <!--AQUI TERMINA EL APARTADO PARA OBTENER LOS DATOS DEL CLIENTE-->
+
+            <div class="row">
+                <div class="col-12">
+                    <label>Método de pago</label>
+                    <div class="col-12">
+                        @Html.RadioButton("metodo_pago", "Efectivo", true, new { id = "efectivo" })
+                        Efectivo
+                        @Html.RadioButton("metodo_pago", "Tarjeta", true, new { id = "tarjeta" })
+                        Tarjeta Cre/Dev
+                    </div>
+                </div>
+                <div class="col-12 mb-2" id="cantidadContenedor">
+                    <label>Cantidad de items</label>
+                    <input type="text" id="cantidad" name="cantidad" readonly />
+                </div>
+
+                <div class="col-12 mb-2" id="total">
+                    <label>Total a cancelar</label>
+                    <input type="text" id="totalPagar" name="totalPagar" readonly />
+                </div>
+                <input type="text" id="idsPedidosSeleccionados" name="idsPedidosSeleccionados" readonly /> <!-- Este es un input oculto donde se enlistarán los Id de pedidos seleccionados para recibirse en el controlador -->
+                <div class="col-12 mb-2 align-content-center">
+                    <input type="submit" class="btn btn-primary" id="botonEnviar" value="Pagar" disabled />
+                </div>
+            </div>
+        </form>
     </div>
 </div>
+
+<!--AQUI SE ENCUENTRA EL JAVASCRIPT DE LA PAGINA-->
+
+@section Scripts {
+    <script>
+        var totalPagar = 0;
+        var cantidadSeleccionada = 0;
+        var idsSeleccionados = []; // Inicializar el array de IDs seleccionados
+
+        $(document).ready(function () {
+            $(".detalle-pedido").change(function () {
+                var idPedido = $(this).data("id");
+                var precio = parseFloat($(this).data("precio"));
+                var cantidad = parseInt($(this).closest("tr").find("td:eq(2)").text());
+
+                if ($(this).is(":checked")) {
+                    totalPagar += precio;
+                    cantidadSeleccionada += cantidad;
+                    // Agregar el ID del pedido seleccionado al array de IDs seleccionados
+                    idsSeleccionados.push(idPedido);
+                } else {
+                    totalPagar -= precio;
+                    cantidadSeleccionada -= cantidad;
+                    // Quitar el ID del pedido deseleccionado del array de IDs seleccionados
+                    var index = idsSeleccionados.indexOf(idPedido);
+                    if (index !== -1) {
+                        idsSeleccionados.splice(index, 1);
+                    }
+                }
+
+                $("#totalPagar").val(totalPagar.toFixed(2));
+                $("#cantidad").val(cantidadSeleccionada);
+                // Actualizar el valor del campo oculto con los IDs seleccionados
+                $("#idsPedidosSeleccionados").val(idsSeleccionados.join(","));
+            });
+        });
+
+        $(document).ready(function () {
+            $('input[type=radio][name=clienteOption]').change(function () {
+                if (this.value == 'existente') {
+                    $('#divClienteExistente').show();
+                    $('#divNuevoCliente').hide();
+                }
+                else if (this.value == 'nuevo') {
+                    $('#divClienteExistente').hide();
+                    $('#divNuevoCliente').show();
+                }
+            });
+        });
+
+        //este es el javascript para habilitar el botón si encuentra el dui en la base de datos
+        function validarDUI() {
+            var radioValue = $('input[name="clienteOption"]:checked').val();
+            var botonEnviar = document.getElementById("botonEnviar");
+
+            if (radioValue === 'existente') {
+                var duiIngresado = document.getElementById("dui_existente").value;
+                var datosClientes = @Html.Raw(Json.Serialize(clientesListado));
+
+                var clienteEncontrado = datosClientes.find(function (cliente) {
+                    return cliente.dui === duiIngresado;
+                });
+
+                if (clienteEncontrado) {
+                    botonEnviar.disabled = false; // Habilitar el botón si se encontró el cliente
+                } else {
+                    botonEnviar.disabled = true; // Deshabilitar el botón si no se encontró el cliente
+                    alert("El DUI ingresado no se encuentra en la lista de clientes.");
+                }
+            } else if (radioValue === 'nuevo') {
+                botonEnviar.disabled = false; // Habilitar el botón cuando la opción sea "nuevo"
+            }
+        }
+
+
+
+    </script>
+
+}
