@@ -30,7 +30,7 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                                      cantidad_personas = m.cantidad_personas,
                                      nombre_estado = e.nombre,
                                      nombre_mesa = m.nombre_mesa
-                                 }).ToList();
+                                 }).Distinct().ToList();
             ViewData["listadoDeMesas"] = listaDeMesas;
 
             return View(await _dulceSaborDbContext.mesas.ToListAsync());
@@ -115,7 +115,7 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                                   join im in _dulceSaborDbContext.items_menu on dp.Id_plato equals im.id_item_menu
                                   join c in _dulceSaborDbContext.cuenta on dp.Id_cuenta equals c.Id_cuenta
                                   join m in _dulceSaborDbContext.mesas on c.Id_mesa equals m.id_mesa
-                                  /*where dp.Estado.Equals("Entregado")*/
+                                  where dp.Estado.Equals("Entregado")
                                   select new
                                   {
                                       id_detP = dp.Id_DetalleCuenta,
@@ -145,9 +145,10 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
         {
             DateTime fechaActual = DateTime.Now;
             int? idCliente = null;
-            var ids = idsPedidosSeleccionados.Split(',').Select(int.Parse).ToList();
+            var ids_detP = idsPedidosSeleccionados.Split(',').Select(int.Parse).ToList();
             var cuenta_id = await _dulceSaborDbContext.Detalle_Pedido
-            .FirstOrDefaultAsync(dp => dp.Id_DetalleCuenta == ids.First());
+            .FirstOrDefaultAsync(dp => dp.Id_DetalleCuenta == ids_detP.First());
+
 
             // Verificar si dui_existente está vacío o nulo
             if (string.IsNullOrEmpty(dui_existente))
@@ -203,10 +204,65 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
             // Agregar el nuevo encabezado de factura a la base de datos
             _dulceSaborDbContext.Add(nuevoEncabezadoFac);
             await _dulceSaborDbContext.SaveChangesAsync();
+            var lastEncFactura = _dulceSaborDbContext.encabezado_fac.OrderByDescending(lef => lef.fecha_cobro).FirstOrDefault();
 
-            return RedirectToAction("Index"); // Redirigir a la página principal
+            if (!string.IsNullOrEmpty(idsPedidosSeleccionados))
+            {
+                // Dividir la cadena en una lista de IDs
+                var ids = idsPedidosSeleccionados.Split(',').Select(int.Parse).ToList();
+
+                // Aquí puedes realizar la inserción en la base de datos para cada ID
+                foreach (var id_detPedido in ids)
+                {
+                    var detPedidoCompleto = await _dulceSaborDbContext.Detalle_Pedido
+                    .FirstOrDefaultAsync(dp => dp.Id_DetalleCuenta == id_detPedido);
+
+                    var detalleFacturaModelo = new detalle_fac
+                    {
+                        id_factura = lastEncFactura.id_factura,
+                        id_detallepedido = id_detPedido,
+                        precio = detPedidoCompleto.Precio,
+                        total_plato = (detPedidoCompleto.Precio * detPedidoCompleto.Cantidad),
+                        cantidad = detPedidoCompleto.Cantidad,
+                    };
+                    _dulceSaborDbContext.Add(detalleFacturaModelo);
+                    await _dulceSaborDbContext.SaveChangesAsync();
+                    detPedidoCompleto.Estado = "Cancelado";
+                    _dulceSaborDbContext.SaveChanges();
+                }
+                var count = await _dulceSaborDbContext.Detalle_Pedido
+                    .Where(dp => dp.Id_cuenta == cuenta_id.Id_cuenta && dp.Estado == "Entregado")
+                    .CountAsync();
+                if (count <= 0)
+                {
+                    var cuentaToUpdate = await _dulceSaborDbContext.cuenta.FindAsync(cuenta_id.Id_cuenta);
+                    cuentaToUpdate.Estado_cuenta = "Finalizado";
+                    await _dulceSaborDbContext.SaveChangesAsync();
+                }
+            }
+            return RedirectToAction("facturaGenerada", new { id = lastEncFactura.id_factura });
         }
 
+
+        public async Task<IActionResult> facturaGenerada(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var encabezado_factura = await _dulceSaborDbContext.encabezado_fac
+                .FirstOrDefaultAsync(m => m.id_factura == id);
+
+            if (encabezado_factura == null)
+            {
+                return NotFound();
+            }
+
+
+
+            return View(encabezado_factura);
+        }
 
     }
 }

@@ -157,12 +157,12 @@
                 var cantidad = parseInt($(this).closest("tr").find("td:eq(2)").text());
 
                 if ($(this).is(":checked")) {
-                    totalPagar += precio;
+                    totalPagar += (precio * cantidad);
                     cantidadSeleccionada += cantidad;
                     // Agregar el ID del pedido seleccionado al array de IDs seleccionados
                     idsSeleccionados.push(idPedido);
                 } else {
-                    totalPagar -= precio;
+                    totalPagar -= (precio * cantidad);
                     cantidadSeleccionada -= cantidad;
                     // Quitar el ID del pedido deseleccionado del array de IDs seleccionados
                     var index = idsSeleccionados.indexOf(idPedido);
