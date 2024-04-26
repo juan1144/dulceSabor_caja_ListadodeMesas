@@ -57,7 +57,7 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
             
             var cuentas = (from m in _dulceSaborDbContext.mesas
                                 join c in _dulceSaborDbContext.cuenta on m.id_mesa equals c.Id_mesa
-                                where m.id_mesa == id && c.Estado_cuenta.Equals("Cerrada")
+                                where c.Id_mesa == id && c.Estado_cuenta.Equals("Cerrada")
                                 select new
                                 {
                                     id_cuenta = c.Id_cuenta,
@@ -68,25 +68,6 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                                     hora_Fecha = c.Fecha_Hora
                                 }).ToList();
             ViewData["lista_cuentas"] = cuentas;
-
-            //SE CREA UNA LISTA CON EL DETALLE DEL PEDIDO EN LA MESA SELECCIONADA
-
-            var detalle_Pedido = (from dp in _dulceSaborDbContext.Detalle_Pedido
-                                  join im in _dulceSaborDbContext.items_menu on dp.Id_plato equals im.id_item_menu
-                                  join c in _dulceSaborDbContext.cuenta on dp.Id_cuenta equals c.Id_cuenta
-                                  join m in _dulceSaborDbContext.mesas on c.Id_mesa equals m.id_mesa
-                           select new
-                           {
-                               id_detP = dp.Id_DetalleCuenta,
-                               id_cuenta = c.Id_cuenta,
-                               id_plato = dp.Id_plato,
-                               nombre_plato = im.nombre,
-                               cantidad = dp.Cantidad,
-                               estado_detPedido = dp.Estado,
-                               tipo_plato = dp.Tipo_Plato,
-                               precio = dp.Precio
-                           }).ToList();
-            ViewData["lista_detPedidos"] = detalle_Pedido;
 
             return View(listadoMesas);
         }
@@ -251,18 +232,36 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                 return NotFound();
             }
 
-            var encabezado_factura = await _dulceSaborDbContext.encabezado_fac
-                .FirstOrDefaultAsync(m => m.id_factura == id);
+            var factura = await _dulceSaborDbContext.encabezado_fac
+                .FirstOrDefaultAsync(f => f.id_factura == id);
 
-            if (encabezado_factura == null)
+            if (factura == null)
             {
                 return NotFound();
             }
 
+            var datosCliente = await _dulceSaborDbContext.clientes
+                .FirstOrDefaultAsync(f => f.id_cliente == factura.id_cliente);
+            ViewData["cliente"] = datosCliente;
 
+            var datosDetFac = (from ef in _dulceSaborDbContext.encabezado_fac
+                               join df in _dulceSaborDbContext.detalle_fac on ef.id_factura equals df.id_factura
+                               join dp in _dulceSaborDbContext.Detalle_Pedido on df.id_detallepedido equals dp.Id_DetalleCuenta
+                               join im in _dulceSaborDbContext.items_menu on dp.Id_plato equals im.id_item_menu
+                               where df.id_factura == factura.id_factura
+                               select new
+                               {
+                                   id_detFac = df.id_detallefac,
+                                   precio = df.precio,
+                                   total = df.total_plato,
+                                   cantidad = df.cantidad,
+                                   nombreItem = im.nombre
+                               }).Distinct().ToList();
+            ViewData["detFacs"] = datosDetFac;
 
-            return View(encabezado_factura);
+            return View(factura);
         }
+
 
     }
 }

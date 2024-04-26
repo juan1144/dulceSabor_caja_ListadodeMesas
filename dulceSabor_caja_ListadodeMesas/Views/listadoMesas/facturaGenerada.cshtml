@@ -1,15 +1,153 @@
 ﻿@model dulceSabor_caja_ListadodeMesas.Models.encabezado_fac
-@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
 @{
-    var datos = ViewData["datos"] as string;
-    
+    var cliente = ViewData["cliente"] as clientes;
 
-    <h1>Factura Generada</h1>
-    @Model.id_factura
-    @Model.total_cobrado
-    @Model.metodo_pago
-    <br />
-    @datos
 }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+            .header h1 {
+                font-size: 24px;
+                color: #333;
+                margin: 0;
+            }
+
+        /* Estilo para las secciones */
+        .section {
+            background-color: #f2f2f2;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Estilo para los títulos de las secciones */
+        .section-title {
+            font-size: 18px;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        /* Estilo para los párrafos dentro de las secciones */
+        .section-content p {
+            margin: 5px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+            table th,
+            table td {
+                border: 1px solid #ccc;
+                padding: 8px;
+                text-align: left;
+            }
+
+            table th {
+                background-color: #f2f2f2;
+            }
+
+        .total {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .boton-cobrar {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+            .boton-cobrar:hover {
+                background-color: #45a049;
+            }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Factura</h1>
+        </div>
+        <div class="section">
+            <h2 class="section-title">Información del restaurante</h2>
+            <div class="section-content">
+                <p>Nombre del restaurante: Restaurante Ejemplo</p>
+                <p>Dirección: Calle Ejemplo #123</p>
+                <p>Teléfono: 123-456-789</p>
+            </div>
+        </div>
+        <div class="section">
+            <h2 class="section-title">Información del cliente</h2>
+            <div class="section-content">
+                <p>Nombre del cliente: @cliente.nombre @cliente.apellido</p>
+                <p>DUI: @cliente.dui</p>
+                <p>Correo electrónico: @cliente.correo</p>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Cantidad</th>
+                    <th>Precio unitario</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var detFac in (IEnumerable<dynamic>)ViewData["detFacs"])
+                {
+                    <tr>
+                        <td>@detFac.nombreItem</td>
+                        <td>@detFac.cantidad</td>
+                        <td>@detFac.precio</td>
+                        <td>@detFac.total</td>
+                    </tr>
+                }
+                <!-- Agrega más filas según los productos consumidos -->
+            </tbody>
+        </table>
+        <div class="total">
+            <p>Total Cobrado: @Model.total_cobrado</p>
+        </div>
+        <div class="info">
+            <p>@Model.fecha_cobro</p>
+        </div>
+        <a asp-action="Index"><button type="button" class="boton-cobrar">Regresar</button></a>
+    </div>
+</body>
+</html>

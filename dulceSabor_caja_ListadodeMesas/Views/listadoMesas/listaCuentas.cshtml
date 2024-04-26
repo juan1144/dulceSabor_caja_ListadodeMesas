@@ -3,106 +3,109 @@
 @{
     ViewData["Title"] = "ListaCuentas";
 }
+<!DOCTYPE html>
+<html lang="es">
 
-<h1>Lista de cuentas</h1>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listado de Cuentas Abiertas</title>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
 
-<div>
-    <h4>@Html.DisplayFor(model => model.nombre_mesa)</h4>
-    <hr />
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
 
-    @foreach (var cuenta in (IEnumerable<dynamic>)ViewData["lista_cuentas"])
-    {
-        int cuenta_id = @cuenta.id_cuenta;
-        <table class="table table-striped-columns">
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        /* Estilos de la tabla */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        /* Estilos de los botones */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+            .btn:hover {
+                background-color: #45a049;
+            }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Listado de Cuentas Abiertas</h1>
+        <p>Se encuentra en la mesa: <strong>Mesa Tal</strong></p>
+        <table>
             <thead>
                 <tr>
-                    <th>
-                        Id de cuenta
-                    </th>
-                    <th>
-                        Nombre del cliente
-                    </th>
-                    <th>
-                        Cantidad de Personas
-                    </th>
-                    <th>
-                        Estado
-                    </th>
-                    <th>
-                        Fecha y Hora
-                    </th>
-                    <th></th>
+                    <th>Nombre del Cliente</th>
+                    <th>Cantidad de Personas</th>
+                    <th>Estado de la Cuenta</th>
+                    <th>Fecha y Hora de Creación</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>
-                        @cuenta.id_cuenta
-                    </td>
-                    <td>
-                        @cuenta.nombre_cliente
-                    </td>
-                    <td>
-                        @cuenta.cantidad_personas
-                    </td>
-                    <td>
-                        @cuenta.estado_Cuenta
-                    </td>
-                    <td>
-                        @cuenta.hora_Fecha
-                    </td>
-                    <td>
-                        <a asp-action="GenerarFactura" asp-route-id="@cuenta.id_cuenta"><button type="button" class="btn btn-success">Facturar</button></a>
-                    </td>
-                </tr>
+                @foreach (var cuenta in (IEnumerable<dynamic>)ViewData["lista_cuentas"])
+                {
+                    <tr>
+                        <td>
+                            @cuenta.nombre_cliente
+                        </td>
+                        <td>
+                            @cuenta.cantidad_personas
+                        </td>
+                        <td>
+                            @cuenta.estado_Cuenta
+                        </td>
+                        <td>
+                            @cuenta.hora_Fecha
+                        </td>
+                        <td>
+                            <a asp-action="GenerarFactura" asp-route-id="@cuenta.id_cuenta"><button type="button" class="btn btn-success">Facturar</button></a>
+                        </td>
+                    </tr>
+                }
             </tbody>
         </table>
+    </div>
+</body>
 
-        /*@foreach (var detalle_cuenta in (IEnumerable<dynamic>)ViewData["lista_detPedidos"])
-        {
-            if (@detalle_cuenta.id_cuenta == @cuenta.id_cuenta)
-            {
-                <dl class="row">
-                    <dt class="col-sm-2">
-                        Id del pedido
-                    </dt>
-                    <dd class="col-sm-10">
-                        @detalle_cuenta.id_detP
-                    </dd>
-                    <dt class="col-sm-2">
-                        Id de la cuenta
-                    </dt>
-                    <dd class="col-sm-10">
-                        @detalle_cuenta.id_cuenta
-                    </dd>
-                    <dt class="col-sm-2">
-                        Nombre del plato
-                    </dt>
-                    <dd class="col-sm-10">
-                        @detalle_cuenta.nombre_plato
-                    </dd>
-                    <dt class="col-sm-2">
-                        Cantidad
-                    </dt>
-                    <dd class="col-sm-10">
-                        @detalle_cuenta.cantidad
-                    </dd>
-                    <dt class="col-sm-2">
-                        Estado del pedido
-                    </dt>
-                    <dd class="col-sm-10">
-                        @detalle_cuenta.estado_detPedido
-                    </dd>
-                    <dt class="col-sm-2">
-                        Precio
-                    </dt>
-                    <dd class="col-sm-10">
-                        @detalle_cuenta.precio
-                    </dd>
-                </dl>
-            }
-        }*/
-
-        <hr />
-    }
-</div>
+</html>
