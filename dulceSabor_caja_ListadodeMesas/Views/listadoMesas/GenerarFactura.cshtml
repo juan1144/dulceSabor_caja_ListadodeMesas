@@ -103,15 +103,11 @@
             width: 100%;
             padding: 10px;
             border: none;
-            background-color: #4CAF50;
+            background-color: #ccc;
             color: white;
             cursor: pointer;
             border-radius: 5px;
             transition: background-color 0.3s;
-        }
-
-        .boton-cobrar:hover {
-            background-color: #45a049;
         }
 
         .label-inline {
@@ -170,7 +166,7 @@
         <div class="right-section">
             <form asp-action="facturar">
                 <div class="row">
-                    <p>Cliente:</p>
+                    <p class="nombreCliente">Cliente:</p>
                     <div class="col-4">
                         <label for="existente">Existente:</label>
                         <input type="radio" name="clienteOption" value="existente" checked onchange="validarDUI()">
@@ -250,118 +246,113 @@
 
             $(document).ready(function () {
                 $(".detalle-pedido").change(function () {
-                    var idPedido = $(this).data("id");
-                    var precio = parseFloat($(this).data("precio"));
-                    var cantidad = parseInt($(this).closest("tr").find("td:eq(1)").text()); // Obtener la cantidad de manera más confiable
-
-                    if ($(this).is(":checked")) {
-                        totalPagar += (precio * cantidad);
-                        cantidadSeleccionada += cantidad;
-                        // Agregar el ID del pedido seleccionado al array de IDs seleccionados
-                        idsSeleccionados.push(idPedido);
-                    } else {
-                        totalPagar -= (precio * cantidad);
-                        cantidadSeleccionada -= cantidad;
-                        // Quitar el ID del pedido deseleccionado del array de IDs seleccionados
-                        var index = idsSeleccionados.indexOf(idPedido);
-                        if (index !== -1) {
-                            idsSeleccionados.splice(index, 1);
-                        }
-                    }
-
-                    $("#totalPagar").val(totalPagar.toFixed(2));
-                    $("#cantidad").val(cantidadSeleccionada);
-                    // Actualizar el valor del campo oculto con los IDs seleccionados
-                    $("#idsPedidosSeleccionados").val(idsSeleccionados.join(","));
+                    actualizarTotales();
                 });
-            });
 
-
-            $(document).ready(function () {
-                $('input[type=radio][name=clienteOption]').change(function () {
-                    if (this.value == 'existente') {
+                // Escuchar cambios en los radio button de cliente existente o nuevo
+                $('input[name="clienteOption"]').change(function () {
+                    if (this.value === 'existente') {
                         $('#divClienteExistente').show();
                         $('#divNuevoCliente').hide();
-                    }
-                    else if (this.value == 'nuevo') {
+                    } else {
+                        var duiExistenteInput = document.getElementById("dui_existente");
+                        var duiExistenteValue = duiExistenteInput.value;
+                        duiExistenteInput.value = "";
                         $('#divClienteExistente').hide();
                         $('#divNuevoCliente').show();
                     }
+                    validarFormulario();
+                });
+
+                // Escuchar cambios en el DUI existente
+                $("#dui_existente").on('input', function () {
+                    validarFormulario();
+                });
+
+                // Escuchar cambios en los campos de cliente nuevo
+                $("#nombre, #apellido, #correo, #dui_nuevo").on('input', function () {
+                    validarFormulario();
                 });
             });
 
-            //este es el javascript para habilitar el botón si encuentra el dui en la base de datos
-            function validarDUI() {
-                var radioValue = $('input[name="clienteOption"]:checked').val();
-                var botonEnviar = document.getElementById("botonEnviar");
+            // Función para validar y habilitar el botón de pago según las condiciones
+            function validarFormulario() {
+                if (todosCamposLlenos() && alMenosUnElementoSeleccionado()) {
+                    var botonEnviar = document.getElementById("botonEnviar");
+                    var nombreCliente = document.querySelector(".nombreCliente");
 
-                if (radioValue === 'existente') {
-                    var duiIngresado = document.getElementById("dui_existente").value;
-                    var datosClientes = @Html.Raw(Json.Serialize(clientesListado));
+                    if ($('input[name="clienteOption"]:checked').val() === 'existente') {
+                        var duiIngresado = $("#dui_existente").val();
+                        var datosClientes = @Html.Raw(Json.Serialize(clientesListado));
 
-                    var clienteEncontrado = datosClientes.find(function (cliente) {
-                        return cliente.dui === duiIngresado;
-                    });
+                        var clienteEncontrado = datosClientes.find(function (cliente) {
+                            return cliente.dui === duiIngresado;
+                        });
 
-                    if (clienteEncontrado) {
-                        botonEnviar.disabled = false; // Habilitar el botón si se encontró el cliente
+                        if (clienteEncontrado) {
+                            botonEnviar.style.backgroundColor = "#4CAF50";
+                            nombreCliente.textContent = "Cliente: " + clienteEncontrado.nombre + " " + clienteEncontrado.apellido;
+                            botonEnviar.disabled = false;
+                            return;
+                        }
                     } else {
-                        botonEnviar.disabled = true; // Deshabilitar el botón si no se encontró el cliente
-                        alert("El DUI ingresado no se encuentra en la lista de clientes.");
+                        botonEnviar.style.backgroundColor = "#4CAF50";
+                        nombreCliente.textContent = "Cliente: " + $("#nombre").val() + " " + $("#apellido").val();
+                        botonEnviar.disabled = false;
+                        return;
                     }
-                } else if (radioValue === 'nuevo') {
-                    botonEnviar.disabled = false; // Habilitar el botón cuando la opción sea "nuevo"
+                }
+                // Si no se cumplen las condiciones, deshabilitar el botón
+                var botonEnviar = document.getElementById("botonEnviar");
+                var nombreCliente = document.querySelector(".nombreCliente");
+                botonEnviar.style.backgroundColor = "#ccc";
+                nombreCliente.textContent = "Cliente: ";
+                botonEnviar.disabled = true;
+            }
+
+            // Función para verificar si todos los campos requeridos están llenos
+            function todosCamposLlenos() {
+                if ($('input[name="clienteOption"]:checked').val() === 'existente') {
+                    return $("#dui_existente").val() !== "";
+                } else {
+                    return $("#nombre").val() !== "" &&
+                        $("#apellido").val() !== "" &&
+                        $("#correo").val() !== "" &&
+                        $("#dui_nuevo").val() !== "";
                 }
             }
 
+            // Función para verificar si al menos un elemento de la tabla está seleccionado
+            function alMenosUnElementoSeleccionado() {
+                return $(".detalle-pedido:checked").length > 0;
+            }
 
+            // Función para actualizar los totales cuando se seleccionan o deseleccionan pedidos
+            function actualizarTotales() {
+                totalPagar = 0;
+                cantidadSeleccionada = 0;
+                idsSeleccionados = [];
 
+                $(".detalle-pedido:checked").each(function () {
+                    var idPedido = $(this).data("id");
+                    var precio = parseFloat($(this).data("precio"));
+                    var cantidad = parseInt($(this).closest("tr").find("td:eq(1)").text());
+
+                    totalPagar += (precio * cantidad);
+                    cantidadSeleccionada += cantidad;
+                    idsSeleccionados.push(idPedido);
+                });
+
+                $("#totalPagar").val(totalPagar.toFixed(2));
+                $("#cantidad").val(cantidadSeleccionada);
+                $("#idsPedidosSeleccionados").val(idsSeleccionados.join(","));
+
+                validarFormulario();
+            }
         </script>
-
     }
+
+
 </body>
 
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!--AQUI SE ENCUENTRA EL CÓDIGO ORIGINAL DE LA PAGINA-->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
