@@ -6,6 +6,7 @@ namespace dulceSabor_caja_ListadodeMesas.Models
         [Key]
         [Display(Name = "Id mesa")]
         public int id_mesa { get; set; }
+
         [Display(Name = "Cantidad personas")]
         public int? cantidad_personas { get; set; }
 

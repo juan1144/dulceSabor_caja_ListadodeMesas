@@ -127,41 +127,64 @@
                 <p>Id de la Cuenta: <strong>@Model.Id_cuenta</strong></p>
             </div>
             <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Cantidad</th>
-                        <th>Estado</th>
-                        <th>Precio</th>
-                        <th>Seleccionar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var detalle_cuenta in (IEnumerable<dynamic>)ViewData["lista_detPedidos"])
-                    {
-                        if (@detalle_cuenta.id_cuenta == @Model.Id_cuenta)
+    <thead>
+        <tr>
+            <th>Item</th>
+            <th>Cantidad</th>
+            <th>Estado</th>
+            <th>Precio</th>
+            <th>Seleccionar</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var detalle_cuenta in (IEnumerable<dynamic>)ViewData["lista_detPedidos"])
+        {
+            if (detalle_cuenta.id_cuenta == Model.Id_cuenta)
+            {
+                <tr>
+                    <td>
+                        @if (detalle_cuenta.tipo_plato == 'c') 
                         {
-                            <tr>
-                                <td>
-                                    @detalle_cuenta.nombre_plato
-                                </td>
-                                <td>
-                                    @detalle_cuenta.cantidad
-                                </td>
-                                <td>
-                                    @detalle_cuenta.estado_detPedido
-                                </td>
-                                <td>
-                                    @detalle_cuenta.precio
-                                </td>
-                                <td>
-                                    <input type="checkbox" class="detalle-pedido" data-id="@detalle_cuenta.id_detP" data-precio="@detalle_cuenta.precio" />
-                                </td>
-                            </tr>
+                            @detalle_cuenta.combo.descripcion_combo
                         }
-                    }
-                </tbody>
-            </table>
+                        else if (detalle_cuenta.tipo_plato == 'p')
+                        {
+                            @detalle_cuenta.promocion.descripcion_promo
+                        }
+                        else
+                        {
+                            @detalle_cuenta.nombre_plato
+                        }
+                    </td>
+                    <td>
+                        @detalle_cuenta.cantidad
+                    </td>
+                    <td>
+                        @detalle_cuenta.estado_detPedido
+                    </td>
+                    <td>
+                        @if (detalle_cuenta.tipo_plato == 'c')
+                        {
+                            @detalle_cuenta.combo.precio_combo
+                        }
+                        else if (detalle_cuenta.tipo_plato == 'p')
+                        {
+                            @detalle_cuenta.promocion.precio_promo
+                        }
+                        else
+                        {
+                            @detalle_cuenta.precio
+                        }
+                    </td>
+                    <td>
+                        <input type="checkbox" class="detalle-pedido" data-id="@detalle_cuenta.id_detP" data-precio="@detalle_cuenta.precio" />
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
         </div>
         <div class="right-section">
             <form asp-action="facturar">
@@ -328,6 +351,7 @@
             }
 
             // Función para actualizar los totales cuando se seleccionan o deseleccionan pedidos
+            // Función para actualizar los totales cuando se seleccionan o deseleccionan pedidos
             function actualizarTotales() {
                 totalPagar = 0;
                 cantidadSeleccionada = 0;
@@ -335,8 +359,19 @@
 
                 $(".detalle-pedido:checked").each(function () {
                     var idPedido = $(this).data("id");
-                    var precio = parseFloat($(this).data("precio"));
                     var cantidad = parseInt($(this).closest("tr").find("td:eq(1)").text());
+                    var precio = 0;
+
+                    // Verificar si es un combo, una promoción o un artículo normal
+                    var tipoPlato = $(this).closest("tr").find("td:eq(2)").text().trim();
+
+                    if (tipoPlato === 'Combo') {
+                        precio = parseFloat($(this).closest("tr").find("td:eq(3)").text().trim());
+                    } else if (tipoPlato === 'Promo') {
+                        precio = parseFloat($(this).closest("tr").find("td:eq(3)").text().trim());
+                    } else {
+                        precio = parseFloat($(this).closest("tr").find("td:eq(3)").text().trim());
+                    }
 
                     totalPagar += (precio * cantidad);
                     cantidadSeleccionada += cantidad;
@@ -349,6 +384,7 @@
 
                 validarFormulario();
             }
+
         </script>
     }
 

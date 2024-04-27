@@ -93,9 +93,9 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
             }
 
             var detalle_Pedido = (from dp in _dulceSaborDbContext.Detalle_Pedido
-                                  join im in _dulceSaborDbContext.items_menu on dp.Id_plato equals im.id_item_menu
                                   join c in _dulceSaborDbContext.cuenta on dp.Id_cuenta equals c.Id_cuenta
                                   join m in _dulceSaborDbContext.mesas on c.Id_mesa equals m.id_mesa
+                                  join im in _dulceSaborDbContext.items_menu on dp.Id_plato equals im.id_item_menu
                                   where dp.Estado.Equals("Entregado")
                                   select new
                                   {
@@ -106,9 +106,37 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                                       cantidad = dp.Cantidad,
                                       estado_detPedido = dp.Estado,
                                       tipo_plato = dp.Tipo_Plato,
-                                      precio = dp.Precio
+                                      precio = dp.Precio,
+                                      // Si el tipo de plato es Combo, obtener información del combo
+                                      combo = dp.Tipo_Plato == 'c' ?
+                                          (from ic in _dulceSaborDbContext.items_combo
+                                           join co in _dulceSaborDbContext.combos on ic.id_combo equals co.id_combo
+                                           where ic.id_item_menu == im.id_item_menu
+                                           select new
+                                           {
+                                               id_combo = co.id_combo,
+                                               descripcion_combo = co.descripcion,
+                                               precio_combo = co.precio,
+                                               imagen_combo = co.imagen
+                                           }).FirstOrDefault() : null,
+                                      // Si el tipo de plato es Promoción, obtener información de la promoción
+                                      promocion = dp.Tipo_Plato == 'p' ?
+                                          (from ip in _dulceSaborDbContext.items_promo
+                                           join pr in _dulceSaborDbContext.promociones on ip.id_promo equals pr.id_promo
+                                           where ip.id_item_menu == im.id_item_menu
+                                           select new
+                                           {
+                                               id_promo = pr.id_promo,
+                                               descripcion_promo = pr.nombre,
+                                               precio_promo = pr.precio,
+                                               fecha_inicio_promo = pr.fecha_inicio,
+                                               fecha_final_promo = pr.fecha_final,
+                                               imagen_promo = pr.imagen
+                                           }).FirstOrDefault() : null
                                   }).ToList();
+
             ViewData["lista_detPedidos"] = detalle_Pedido;
+
 
             var clientesDatos = await _dulceSaborDbContext.clientes.ToListAsync();
             ViewData["listaClientes"] = clientesDatos;
@@ -196,21 +224,56 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                 foreach (var id_detPedido in ids)
                 {
                     var detPedidoCompleto = await _dulceSaborDbContext.Detalle_Pedido
-                    .FirstOrDefaultAsync(dp => dp.Id_DetalleCuenta == id_detPedido);
+                        .FirstOrDefaultAsync(dp => dp.Id_DetalleCuenta == id_detPedido);
+
+                    decimal precioFactura = detPedidoCompleto.Precio;
+
+                    var comboPrecio = await (from ic in _dulceSaborDbContext.items_combo
+                                             join c in _dulceSaborDbContext.combos on ic.id_combo equals c.id_combo
+                                             where ic.id_item_menu == detPedidoCompleto.Id_plato
+                                             select c.precio)
+                                             .FirstOrDefaultAsync();
+                    if (comboPrecio != null)
+                    {
+                        precioFactura = comboPrecio.Value;
+                    }
+                    else
+                    {
+                        var promocionPrecio = await (from ip in _dulceSaborDbContext.items_promo
+                                                     join p in _dulceSaborDbContext.promociones on ip.id_promo equals p.id_promo
+                                                     where ip.id_item_menu == detPedidoCompleto.Id_plato
+                                                     select p.precio)
+                                                    .FirstOrDefaultAsync();
+                        if (promocionPrecio != null)
+                        {
+                            precioFactura = promocionPrecio.Value;
+                        }
+                    }
 
                     var detalleFacturaModelo = new detalle_fac
                     {
                         id_factura = lastEncFactura.id_factura,
                         id_detallepedido = id_detPedido,
-                        precio = detPedidoCompleto.Precio,
-                        total_plato = (detPedidoCompleto.Precio * detPedidoCompleto.Cantidad),
+                        precio = precioFactura,
+                        total_plato = precioFactura * detPedidoCompleto.Cantidad,
                         cantidad = detPedidoCompleto.Cantidad,
                     };
+
                     _dulceSaborDbContext.Add(detalleFacturaModelo);
-                    await _dulceSaborDbContext.SaveChangesAsync();
-                    detPedidoCompleto.Estado = "Cancelado";
-                    _dulceSaborDbContext.SaveChanges();
                 }
+
+                await _dulceSaborDbContext.SaveChangesAsync();
+
+                foreach (var id_detPedido in ids)
+                {
+                    var detPedidoCompleto = await _dulceSaborDbContext.Detalle_Pedido
+                        .FirstOrDefaultAsync(dp => dp.Id_DetalleCuenta == id_detPedido);
+                    detPedidoCompleto.Estado = "Cancelado";
+                }
+
+                await _dulceSaborDbContext.SaveChangesAsync();
+
+
                 var count = await _dulceSaborDbContext.Detalle_Pedido
                     .Where(dp => dp.Id_cuenta == cuenta_id.Id_cuenta && dp.Estado == "Entregado")
                     .CountAsync();
@@ -247,7 +310,6 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
             var datosDetFac = (from ef in _dulceSaborDbContext.encabezado_fac
                                join df in _dulceSaborDbContext.detalle_fac on ef.id_factura equals df.id_factura
                                join dp in _dulceSaborDbContext.Detalle_Pedido on df.id_detallepedido equals dp.Id_DetalleCuenta
-                               join im in _dulceSaborDbContext.items_menu on dp.Id_plato equals im.id_item_menu
                                where df.id_factura == factura.id_factura
                                select new
                                {
@@ -255,9 +317,20 @@ namespace dulceSabor_caja_ListadodeMesas.Controllers
                                    precio = df.precio,
                                    total = df.total_plato,
                                    cantidad = df.cantidad,
-                                   nombreItem = im.nombre
-                               }).Distinct().ToList();
+                                   nombreItem = (from im in _dulceSaborDbContext.items_menu
+                                                 where im.id_item_menu == dp.Id_plato
+                                                 select im.nombre).FirstOrDefault(),
+                                   nombreCombo = (from ic in _dulceSaborDbContext.items_combo
+                                                  join c in _dulceSaborDbContext.combos on ic.id_combo equals c.id_combo
+                                                  where ic.id_item_menu == dp.Id_plato
+                                                  select c.descripcion).FirstOrDefault(),
+                                   nombrePromo = (from ip in _dulceSaborDbContext.items_promo
+                                                  join p in _dulceSaborDbContext.promociones on ip.id_promo equals p.id_promo
+                                                  where ip.id_item_menu == dp.Id_plato
+                                                  select p.nombre).FirstOrDefault()
+                               }).ToList();
             ViewData["detFacs"] = datosDetFac;
+
 
             return View(factura);
         }

@@ -132,7 +132,20 @@
                 @foreach (var detFac in (IEnumerable<dynamic>)ViewData["detFacs"])
                 {
                     <tr>
-                        <td>@detFac.nombreItem</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(detFac.nombreCombo))
+                            {
+                                @detFac.nombreCombo
+                            }
+                            else if (!string.IsNullOrEmpty(detFac.nombrePromo))
+                            {
+                                @detFac.nombrePromo
+                            }
+                            else
+                            {
+                                @detFac.nombreItem
+                            }
+                        </td>
                         <td>@detFac.cantidad</td>
                         <td>@detFac.precio</td>
                         <td>@detFac.total</td>
